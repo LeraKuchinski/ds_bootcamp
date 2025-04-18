@@ -2,7 +2,7 @@ name: Deploy 2 DigitalOcean
 
 on:
   push:
-    branches: [ main ]
+    branches: ['dev_ui', 'dev_candidate', 'dev_feedback' ]
 
 permissions:
   contents: read
