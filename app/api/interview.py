@@ -11,6 +11,9 @@ from pprint import pp
 from agents import Runner
 from app.agents.interviewee_agent import create_interviewee_agent
 
+from app.agents.profiles import candidate_profiles
+profile = candidate_profiles['talkative']
+
 # Используем директорию /tmp для временных файлов (доступна для записи всем пользователям)
 TEMP_DIR = "/tmp/ai-interview-temp"
 os.makedirs(TEMP_DIR, exist_ok=True)
@@ -28,7 +31,8 @@ prompts = load_prompts("persona_system_prompt.yaml")
 async def websocket_interview(ws: WebSocket, persona: str = Query("Junior Python Developer"), skill: str = Query("Python programming")):
     await ws.accept()  # Принимаем подключение
     # системный промпт для агента на основе выбранной персоны и навыка
-    system_prompt = prompts["persona_system_prompt"].format(persona=persona, skill=skill)
+    # system_prompt = prompts["persona_system_prompt"].format(persona=persona, skill=skill)
+    system_prompt = prompts['extended_persona_system_prompt']['template']#.format(persona=persona, skill=skill) # ["persona_system_prompt"]
     agent = create_interviewee_agent(system_prompt)  # агент для интервью
     try:
         while True:
