@@ -35,29 +35,23 @@ class CVOutput(BaseModel):
     suggestions: List[str] = Field(default_factory=list, description="Suggestions for improving the resume")
     brainstormed_data: Dict[str, Any] = Field(default_factory=dict, description="All brainstormed data used to create the resume")
 
-def save_resume_as_file(resume_text: str, name: str) -> str:
+def generate_resume_filename_and_content(resume_text: str, name: str) -> tuple[str, str]:
     """
-    Save the resume as a text file and return the file path
+    Generate a filename for the resume and return it along with the content.
+    Does not save the file locally.
     """
     try:
-        print(f"Saving resume file for {name}...")
-        
-        # Save text file (UTF-8)
+        print(f"Generating filename for {name}...")
         timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         safe_filename_name = "".join(c if c.isalnum() or c in (' ', '_') else '' for c in name).rstrip()
-        text_filename = f"resume_{safe_filename_name.replace(' ', '_').lower()}_{timestamp}.txt"
-        current_dir = os.getcwd()
-        text_path = os.path.join(current_dir, text_filename)
-        
-        with open(text_path, "w", encoding="utf-8") as f:
-            f.write(resume_text)
-        print(f"✅ Text file saved (UTF-8): {text_path}")
-        
-        return text_path
+        filename = f"resume_{safe_filename_name.replace(' ', '_').lower()}_{timestamp}.txt"
+        print(f"✅ Generated filename: {filename}")
+        return filename, resume_text
         
     except Exception as e:
-        print(f"❌ Error saving resume file: {str(e)}")
-        return ""
+        print(f"❌ Error generating filename: {str(e)}")
+        # Return a default filename and error message as content in case of failure
+        return "error_resume.txt", f"Error generating filename: {str(e)}"
 
 # Counter to track how many times generate_cv is called
 call_counter = 0
@@ -171,30 +165,38 @@ def generate_cv(name: str, specialization: str, persona: str, **kwargs) -> Dict[
             result = json.loads(content)
             print("Successfully generated resume content")
             
-            # Save resume to file
-            if result and "resume_text" in result:
-                file_path = save_resume_as_file(result["resume_text"], name)
-                print(f"Resume saved to {file_path}")
-                
-            # Return a dictionary instead of CVOutput object to maintain compatibility
+            resume_content = result.get("resume_text", "")
+            filename = "resume_error.txt" # Default filename in case generation fails or text is empty
+
+            # Generate filename and get content if resume_text exists
+            if resume_content:
+                 filename, resume_content = generate_resume_filename_and_content(resume_content, name)
+                 print(f"Prepared resume content and filename: {filename}")
+                 
+            # Return a dictionary including filename and content
             return {
-                "resume_text": result.get("resume_text", ""),
+                "filename": filename,
+                "resume_content": resume_content, 
                 "suggestions": result.get("suggestions", []),
                 "brainstormed_data": result.get("brainstormed_data", {})
             }
             
         except json.JSONDecodeError:
             print("Warning: Response wasn't valid JSON")
+            # Return the raw content if JSON parsing fails, with a default filename
             return {
-                "resume_text": content,
+                "filename": "invalid_json_resume.txt",
+                "resume_content": content, 
                 "suggestions": [],
                 "brainstormed_data": {}
             }
             
     except Exception as e:
         print(f"Error generating resume: {str(e)}")
+        # Return error details in the dictionary
         return {
-            "resume_text": f"Failed to generate resume: {str(e)}",
+            "filename": "error_resume.txt",
+            "resume_content": f"Failed to generate resume: {str(e)}",
             "suggestions": [],
             "brainstormed_data": {}
         }

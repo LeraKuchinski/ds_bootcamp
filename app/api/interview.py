@@ -1,4 +1,5 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
+from fastapi.responses import PlainTextResponse
 import base64
 import json
 import os
@@ -43,6 +44,42 @@ def get_cached_cv(name: str, specialization: str, persona: str):
     cv_cache[cache_key] = cv_data
     
     return cv_data
+
+# New HTTP endpoint for CV download
+@router.get("/generate-cv-download", response_class=PlainTextResponse)
+async def generate_cv_download(
+    name: str = Query(..., description="Candidate Name"), 
+    specialization: str = Query(..., description="Area of specialization"), 
+    persona: str = Query(..., description="Target persona for the CV")
+):
+    """
+    Generates (or retrieves from cache) a CV and returns it as a text file download.
+    """
+    try:
+        # Use the existing caching mechanism
+        cv_data = get_cached_cv(name=name, specialization=specialization, persona=persona)
+        
+        filename = cv_data.get("filename", "error_resume.txt")
+        resume_content = cv_data.get("resume_content", "")
+
+        # Check if content generation failed (based on the content string from cv_agent)
+        if "Failed to generate resume" in resume_content or not resume_content:
+            raise HTTPException(status_code=500, detail=f"Failed to generate or retrieve CV content: {resume_content}")
+
+        # Prepare headers for file download
+        headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
+        
+        # Return the resume content as a downloadable text file
+        return PlainTextResponse(content=resume_content, media_type='text/plain', headers=headers)
+        
+    except Exception as e:
+        # Catch potential errors during CV generation or retrieval
+        print(f"Error in /generate-cv-download: {str(e)}")
+        # Re-raise as HTTPException for FastAPI to handle
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 # Вебсокет-эндпоинт для интервью
 @router.websocket("/ws/interview")
 async def websocket_interview(ws: WebSocket, persona: str = Query("Junior Python Developer"), skill: str = Query("Python programming"), psyho_profile: str = Query("template_speaker")):

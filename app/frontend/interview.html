@@ -38,7 +38,10 @@
                 Отправить
             </button>
         </form>
-        <div class="flex justify-between space-x-2 mt-4">
+        <div class="flex justify-between items-center space-x-2 mt-4">
+            <button id="downloadCvBtn" onclick="downloadCV()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded text-white" disabled>
+                Скачать CV
+            </button>
             <button id="endInterviewBtn" onclick="endInterview()" class="bg-red-600 hover:bg-red-700 px-4 py-2 rounded text-white">
                 Завершить интервью
             </button>
@@ -108,10 +111,12 @@
             isConnected = true;
             updateConnectionStatus('Подключено', 'green');
             enableInterface();
+            document.getElementById('downloadCvBtn').disabled = false;
         };
         ws.onclose = (event) => {
             isConnected = false;
             disableInterface();
+            document.getElementById('downloadCvBtn').disabled = true;
             if (event.code === 1000) {
                 updateConnectionStatus('Соединение закрыто', 'yellow');
             } else {
@@ -260,6 +265,7 @@
             redirectToHome();
         } catch (error) {
             alert('Ошибка при сохранении результатов интервью: ' + error.message);
+            console.error("Export error:", error);
         }
     }
     function exportInterviewData() {
@@ -416,6 +422,31 @@
 
     // --- Инициализация соединения при загрузке страницы ---
     connectWebSocket();
+
+    // --- Function to trigger CV Download ---
+    function downloadCV() {
+        if (!isConnected) {
+            showError("Нет соединения с сервером для загрузки CV.");
+            return;
+        }
+
+        // Get parameters - use currentSkill for specialization as in backend
+        const name = urlParams.get('name') || 'Candidate'; // Get name from URL or default
+        const specialization = currentSkill; 
+        const persona = currentPersona;
+
+        if (!specialization || !persona) {
+            showError("Не удалось определить параметры (специализация, персона) для загрузки CV.");
+            return;
+        }
+
+        // Construct the download URL (No /api prefix based on main.py)
+        const downloadUrl = `/generate-cv-download?name=${encodeURIComponent(name)}&specialization=${encodeURIComponent(specialization)}&persona=${encodeURIComponent(persona)}`;
+
+        // Trigger the download by navigating to the URL
+        console.log(`Triggering CV download from: ${downloadUrl}`);
+        window.location.href = downloadUrl;
+    }
     </script>
 </body>
 </html>
