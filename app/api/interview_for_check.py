@@ -12,6 +12,7 @@ from agents import Runner
 from app.agents.interviewee_agent import create_interviewee_agent
 from cv_agent import generate_cv
 
+from app.agents.profiles import candidate_profiles
 
 # Используем директорию /tmp для временных файлов (доступна для записи всем пользователям)
 TEMP_DIR = "/tmp/ai-interview-temp"
@@ -24,6 +25,7 @@ stt = STT()
 tts = TTS()
 
 prompts = load_prompts("persona_system_prompt.yaml")
+
 # Simple CV cache to avoid regenerating CVs for the same parameters
 cv_cache = {}
 
@@ -43,19 +45,33 @@ def get_cached_cv(name: str, specialization: str, persona: str):
     cv_cache[cache_key] = cv_data
     
     return cv_data
+
 # Вебсокет-эндпоинт для интервью
 @router.websocket("/ws/interview")
-async def websocket_interview(ws: WebSocket, persona: str = Query("Junior Python Developer"), skill: str = Query("Python programming"), psyho_profile: str = Query("template_speaker")):
+async def websocket_interview(ws: WebSocket, name: str = Query("Candidate"), persona: str = Query("Junior Python Developer"), skill: str = Query("Python programming"), psyho_profile: str = Query("template_speaker")):
+    
     await ws.accept()  # Принимаем подключение
-    # системный промпт для агента на основе выбранной персоны и навыка
-    # system_prompt = prompts["persona_system_prompt"].format(persona=persona, skill=skill)
+
     # Use cached CV instead of generating every time
-    cv_data = get_cached_cv(name=persona, specialization=skill, persona=persona)
+    cv_data = get_cached_cv(name=name, specialization=skill, persona=persona)
     cv_details = cv_data.get("resume_text", "No CV generated.")
     
-    system_prompt = prompts['extended_persona_system_prompt']['template']#.format(persona=persona, skill=skill) # ["persona_system_prompt"]
-    agent = create_interviewee_agent(system_prompt, psyho_profile, persona, skill, cv_details)  # агент для интервью
+    # 2. Load and format the system prompt including CV details
+    system_prompt_template = prompts['extended_persona_system_prompt']['template']
+    system_prompt = system_prompt_template.format(
+        persona=persona, 
+        skill=skill, 
+        name=name, 
+        cv_details=cv_details
+    )
+
+    # 3. Create the agent with the enhanced prompt
+    agent = create_interviewee_agent(system_prompt, psyho_profile, persona, skill)  # агент для интервью
+
+    # --- End Setup ---
+
     try:
+        # --- Message Handling Loop ---
         while True:
             data = await ws.receive_text()  # сообщение от клиента
             json_data = json.loads(data)
@@ -85,5 +101,6 @@ async def websocket_interview(ws: WebSocket, persona: str = Query("Junior Python
             elif not is_audio:
                 # Отправляем клиенту только текст
                 await ws.send_json({"type": "text", "content": agent_text})
+        # --- End Message Handling Loop ---
     except WebSocketDisconnect:
         pass

@@ -5,7 +5,7 @@ from app.agents.profiles import candidate_profiles
 
 
 
-def create_interviewee_agent(system_prompt: str, psyho_profile: str, persona: str, skill: str) -> Agent:
+def create_interviewee_agent(system_prompt: str, psyho_profile: str, persona: str, skill: str, cv_details : str) -> Agent:
     profile = candidate_profiles[psyho_profile]
     profile_description = f"{profile['name']} — {profile['type']}. {profile['description']}"
     
@@ -18,6 +18,7 @@ def create_interviewee_agent(system_prompt: str, psyho_profile: str, persona: st
             persona=persona,
             profile_description=profile_description,
             skill=skill,
+            cv_details = cv_details
         ),
         tools=[lie_answer],
     )
