@@ -19,6 +19,10 @@
                     <p class="font-medium text-gray-700 text-sm">Оцениваемый навык:</p>
                     <p id="skillDisplay" class="mt-1 text-sm">{{ skill if skill else "Not specified" }}</p>
                 </div>
+                <div class="flex-1">
+                    <p class="font-medium text-gray-700 text-sm">Психологический профиль:</p>
+                    <p id="psyhoProfileDisplay" class="mt-1 text-sm">Not specified</p>
+                </div>
             </div>
         </div>
         
@@ -50,6 +54,7 @@
     const urlParams = new URLSearchParams(window.location.search);
     const currentPersona = urlParams.get('persona');
     const currentSkill = urlParams.get('skill');
+    const currentPsyhoProfile = urlParams.get('psyho_profile');
 
     // Если параметры отсутствуют, возвращаем пользователя на выбор профиля
     if (!currentPersona || !currentSkill) {
@@ -59,6 +64,8 @@
     // --- Отображение выбранных параметров на странице ---
     document.getElementById('personaDisplay').textContent = currentPersona;
     document.getElementById('skillDisplay').textContent = currentSkill;
+    document.getElementById('psyhoProfileDisplay').textContent = currentPsyhoProfile || 'Not specified';
+
 
     // --- Глобальные переменные для работы с аудио, состоянием соединения и историей сообщений ---
     let mediaRecorder; // объект для записи аудио
@@ -73,6 +80,7 @@
         timestamp: new Date().toISOString(),
         persona: currentPersona,
         skill: currentSkill,
+        psyho_profile: currentPsyhoProfile,
         messages: []
     };
 
@@ -81,7 +89,7 @@
         let wsHost = window.location.host;
         if (!wsHost || wsHost === 'false') wsHost = 'localhost:8000';
         const wsProtocol = window.location.protocol === "https:" ? "wss" : "ws";
-        const wsUrl = `${wsProtocol}://${wsHost}/ws/interview?persona=${encodeURIComponent(currentPersona)}&skill=${encodeURIComponent(currentSkill)}`;
+        const wsUrl = `${wsProtocol}://${wsHost}/ws/interview?persona=${encodeURIComponent(currentPersona)}&skill=${encodeURIComponent(currentSkill)}&psyho_profile=${encodeURIComponent(currentPsyhoProfile)}`;
         ws = new WebSocket(wsUrl);
         updateConnectionStatus('Подключение...', 'yellow');
         ws.onopen = () => {
