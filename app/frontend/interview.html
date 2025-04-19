@@ -64,8 +64,20 @@
     // --- Отображение выбранных параметров на странице ---
     document.getElementById('personaDisplay').textContent = currentPersona;
     document.getElementById('skillDisplay').textContent = currentSkill;
-    document.getElementById('psyhoProfileDisplay').textContent = currentPsyhoProfile || 'Not specified';
+    // document.getElementById('psyhoProfileDisplay').textContent = currentPsyhoProfile || 'Not specified';
+    // --- Перевод технического значения психотипа на русский ---
+    const psyhoProfileTranslations = {
+        overconfident: "Сверхсамоуверенный",
+        introverted: "Закрытый",
+        talkative: "Многословный",
+        template_speaker: "Слишком адаптированный",
+        hidden_toxic: "Скрытый токсик"
+    };
 
+    // Получить перевод или fallback
+    const profileLabel = psyhoProfileTranslations[currentPsyhoProfile] || 'Не указан';
+
+    document.getElementById('psyhoProfileDisplay').textContent = profileLabel;
 
     // --- Глобальные переменные для работы с аудио, состоянием соединения и историей сообщений ---
     let mediaRecorder; // объект для записи аудио
