@@ -24,6 +24,9 @@ async def evaluate_endpoint(request: Request):
     agent = create_evaluation_agent(system_prompt)
     # 3. Получим ответ от агента
     response = await Runner.run(agent, messages)
+    for step in response.raw_responses:
+        print(step)
+        print("\n")
     # 4. Преобразуем в словарь и запомним
     last_evaluation_result = response.final_output_as(cls=dict)
     # 5. Вернём клиенту результат сразу

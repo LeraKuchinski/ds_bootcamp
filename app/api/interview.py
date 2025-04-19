@@ -1,4 +1,5 @@
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Query, HTTPException
+from fastapi.responses import PlainTextResponse
 import base64
 import json
 import os
@@ -10,6 +11,8 @@ from app.agents.prompts.utils import load_prompts
 from pprint import pp
 from agents import Runner
 from app.agents.interviewee_agent import create_interviewee_agent
+from cv_agent import generate_cv
+
 
 # Используем директорию /tmp для временных файлов (доступна для записи всем пользователям)
 TEMP_DIR = "/tmp/ai-interview-temp"
@@ -22,14 +25,73 @@ stt = STT()
 tts = TTS()
 
 prompts = load_prompts("persona_system_prompt.yaml")
+# Simple CV cache to avoid regenerating CVs for the same parameters
+cv_cache = {}
 
+# Function to get CV with caching
+def get_cached_cv(name: str, specialization: str, persona: str):
+    # Create a cache key from the parameters
+    cache_key = f"{name}_{specialization}_{persona}"
+    
+    # Check if we already have this CV in cache
+    if cache_key in cv_cache:
+        print(f"Using cached CV for {cache_key}")
+        return cv_cache[cache_key]
+    
+    # If not in cache, generate and store it
+    print(f"Generating new CV for {cache_key}")
+    cv_data = generate_cv(name=name, specialization=specialization, persona=persona)
+    cv_cache[cache_key] = cv_data
+    
+    return cv_data
+
+# New HTTP endpoint for CV download
+@router.get("/generate-cv-download", response_class=PlainTextResponse)
+async def generate_cv_download(
+    name: str = Query(..., description="Candidate Name"), 
+    specialization: str = Query(..., description="Area of specialization"), 
+    persona: str = Query(..., description="Target persona for the CV")
+):
+    """
+    Generates (or retrieves from cache) a CV and returns it as a text file download.
+    """
+    try:
+        # Use the existing caching mechanism
+        cv_data = get_cached_cv(name=name, specialization=specialization, persona=persona)
+        
+        filename = cv_data.get("filename", "error_resume.txt")
+        resume_content = cv_data.get("resume_content", "")
+
+        # Check if content generation failed (based on the content string from cv_agent)
+        if "Failed to generate resume" in resume_content or not resume_content:
+            raise HTTPException(status_code=500, detail=f"Failed to generate or retrieve CV content: {resume_content}")
+
+        # Prepare headers for file download
+        headers = {'Content-Disposition': f'attachment; filename="{filename}"'}
+        
+        # Return the resume content as a downloadable text file
+        return PlainTextResponse(content=resume_content, media_type='text/plain', headers=headers)
+        
+    except Exception as e:
+        # Catch potential errors during CV generation or retrieval
+        print(f"Error in /generate-cv-download: {str(e)}")
+        # Re-raise as HTTPException for FastAPI to handle
+        if isinstance(e, HTTPException):
+            raise e
+        else:
+            raise HTTPException(status_code=500, detail=f"An unexpected error occurred: {str(e)}")
 # Вебсокет-эндпоинт для интервью
 @router.websocket("/ws/interview")
-async def websocket_interview(ws: WebSocket, persona: str = Query("Junior Python Developer"), skill: str = Query("Python programming")):
+async def websocket_interview(ws: WebSocket, persona: str = Query("Junior Python Developer"), skill: str = Query("Python programming"), psyho_profile: str = Query("template_speaker")):
     await ws.accept()  # Принимаем подключение
     # системный промпт для агента на основе выбранной персоны и навыка
-    system_prompt = prompts["persona_system_prompt"].format(persona=persona, skill=skill)
-    agent = create_interviewee_agent(system_prompt)  # агент для интервью
+    # system_prompt = prompts["persona_system_prompt"].format(persona=persona, skill=skill)
+    # Use cached CV instead of generating every time
+    cv_data = get_cached_cv(name=persona, specialization=skill, persona=persona)
+    cv_details = cv_data.get("resume_text", "No CV generated.")
+    
+    system_prompt = prompts['extended_persona_system_prompt']['template']#.format(persona=persona, skill=skill) # ["persona_system_prompt"]
+    agent = create_interviewee_agent(system_prompt, psyho_profile, persona, skill, cv_details)  # агент для интервью
     try:
         while True:
             data = await ws.receive_text()  # сообщение от клиента

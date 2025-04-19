@@ -18,6 +18,18 @@
 				<label for="persona-skill" class="block mb-1">Навык, который требуется оценить:</label>
 				<input type="text" id="persona-skill" name="persona-skill" required class="p-2 border rounded w-full">
 			</div>
+			<!-- 👇 ДОБАВЛЕНО: Психологический профиль -->
+			<div>
+				<label for="psyho-profile" class="block mb-1">Психологический профиль:</label>
+				<select id="psyho-profile" name="psyho-profile" required class="p-2 border rounded w-full">
+					<option value="">-- выберите психотип --</option>
+					<option value="overconfident">Сверхсамоуверенный</option>
+					<option value="introverted">Закрытый</option>
+					<option value="talkative">Многословный</option>
+					<option value="template_speaker">Слишком адаптированный</option>
+					<option value="hidden_toxic">Скрытый токсик</option>
+				</select>
+			</div>
 			<button type="submit" class="bg-blue-500 hover:bg-blue-600 px-4 py-2 rounded w-full text-white">
 				Перейти к интервью
 			</button>
@@ -29,14 +41,16 @@
             event.preventDefault();
             const persona_profile = document.getElementById('persona-profile').value.trim();
             const persona_skill = document.getElementById('persona-skill').value.trim();
+			const psyho_profile = document.getElementById('psyho-profile').value.trim();
+
 
             // Простая валидация на стороне клиента
-            if (!persona_profile || !persona_skill) {
-                alert('Пожалуйста, заполните оба поля: профиль и навык.');
-                return;
-            }
+			if (!persona_profile || !persona_skill || !psyho_profile) {
+				alert('Пожалуйста, заполните все поля: профиль, навык и психотип.');
+				return;
+			}
             // Прямое перенаправление на страницу интервью с параметрами
-            window.location.href = `/interview?persona=${encodeURIComponent(persona_profile)}&skill=${encodeURIComponent(persona_skill)}`;
+            window.location.href = `/interview?persona=${encodeURIComponent(persona_profile)}&skill=${encodeURIComponent(persona_skill)}&psyho_profile=${encodeURIComponent(psyho_profile)}`;
         });
     </script>
 </body>
